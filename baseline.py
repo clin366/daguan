@@ -7,14 +7,12 @@ Created on Mon Jul 30 19:03:03 2018
 
 import json
 import numpy as np
+from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 from logger_system import log
-
-from scipy.sparse import csr_matrix
-import scipy.sparse as sparse
-    
-def create_file_vector(train_file_path, dic_path):
+  
+def create_file_vector(train_file_path, dic_path, embedding_size):
     """This is used to create the file vector represent
     This baseline method is as follow:
         1. train word2vec
@@ -29,17 +27,22 @@ def create_file_vector(train_file_path, dic_path):
     file_vector_list = []
     
     # Loop all file to create file vector representation
+    log.info("The number of file is %d" %(len(file_origin_list)))
+    log.info("The number of word list is %d" %(len(word_list)))
     for i in range(len(file_origin_list)):
-        if i % 100 == 0:
+        if i % 10 == 0:
             log.info("Now has processed %d file" %(i))
-        key_word_list = get_top_tfidf_value_word(word_list, tf_idf_sparse_matrix[i].toarray())
-        cur_file_vector = count_average(key_word_list, word_dic, 128)
+            
+        normal_array = tf_idf_sparse_matrix[i].toarray()
+        key_word_list = get_top_tfidf_value_word(word_list, normal_array)
+        cur_file_vector = count_average(key_word_list, word_dic, embedding_size)
         file_vector_list.append(cur_file_vector)
         
     return file_vector_list
 
 def read_origin_data_file(data_file_path):
     """This is used to read the data file"""
+    log.info("Start reading the origin data file")
     file_origin_list = []
     with open(data_file_path, "r") as f:
         while True:
@@ -52,6 +55,7 @@ def read_origin_data_file(data_file_path):
 
 def calculate_tf_idf_matrix(file_origin_list):
     """This is used to calculate the tf-idf matrix value"""
+    log.info("Start calculating the tf idf matrix")
     vectorizer = CountVectorizer()
     transformer = TfidfTransformer()
 
@@ -61,22 +65,21 @@ def calculate_tf_idf_matrix(file_origin_list):
     word_list = vectorizer.get_feature_names()
 
     # convert tfidf to csr_matrix
-
     tfidf_sparse_matrix = csr_matrix(tfidf)
     return word_list, tfidf_sparse_matrix
 
-def get_top_tfidf_value_word(word_list, tfidf_value, num_top=128):
+def get_top_tfidf_value_word(word_list, tfidf_value):
     """This is used to get the top tfidf value words"""
-    word_value_list = []
-    for i in range(len(word_list)):
-        word_value_list.append([tfidf_value[i], word_list[i]])
-    word_value_list.sort(reverse=True)
-    key_word = []
-    for i in range(num_top):
-        key_word.append(word_value_list[i][1])
-    return key_word
+    
+    # 获取99分位数，仅保留tfidf值大于该值的词
+    standard_tfidf = np.percentile(tfidf_value,99.5)
+    key_word_list = []
+    for i in range(len(tfidf_value[0])):
+        if tfidf_value[0][i] >= standard_tfidf:
+            key_word_list.append(word_list[i])
+    return key_word_list
 
-def count_average(key_word_list, word_dic, embedding_size=128):
+def count_average(key_word_list, word_dic, embedding_size):
     """This is used to count the file vector by averaging the key word vector"""
     vector_array = np.zeros(embedding_size)  
     word_count = 0
