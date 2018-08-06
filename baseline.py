@@ -30,7 +30,7 @@ def create_file_vector(train_file_path, dic_path, embedding_size):
     log.info("The number of file is %d" %(len(file_origin_list)))
     log.info("The number of word list is %d" %(len(word_list)))
     for i in range(len(file_origin_list)):
-        if i % 10 == 0:
+        if i % 100 == 0:
             log.info("Now has processed %d file" %(i))
             
         normal_array = tf_idf_sparse_matrix[i].toarray()
@@ -72,7 +72,8 @@ def get_top_tfidf_value_word(word_list, tfidf_value):
     """This is used to get the top tfidf value words"""
     
     # 获取99分位数，仅保留tfidf值大于该值的词
-    standard_tfidf = np.percentile(tfidf_value,99.5)
+    standard_tfidf = np.percentile(tfidf_value,99.9)
+    
     key_word_list = []
     for i in range(len(tfidf_value[0])):
         if tfidf_value[0][i] >= standard_tfidf:
