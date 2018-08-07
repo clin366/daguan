@@ -29,7 +29,7 @@ class BaselineModel(object):
         predict_result = classifier.predict(file_vector_list)
         return predict_result
         
-def generate_model_input_data(train_word_file, train_label_file, dict_file, cv_ratio=0.8):
+def generate_model_input_data(train_word_file, train_label_file, test_word_file, dict_file, embedding_size, cv_ratio=0.8):
     """This is used to generate the input data of model, also do the cv work"""
     label = []
     with open(train_label_file, "r") as f:
@@ -40,7 +40,7 @@ def generate_model_input_data(train_word_file, train_label_file, dict_file, cv_r
             line = line.replace("\n", "")
             label.append(int(line))
     
-    train_file_vector = create_file_vector(train_word_file, dict_file)
+    train_file_vector, test_file_vector = create_file_vector(train_word_file, test_word_file, dict_file, embedding_size)
     train_vector = []
     train_label = []
     train_cv_vector = []
@@ -53,18 +53,19 @@ def generate_model_input_data(train_word_file, train_label_file, dict_file, cv_r
         else:
             train_cv_vector.append(train_file_vector[i])
             train_cv_label.append(label[i])
-    return train_vector, train_label, train_cv_vector, train_cv_label
+    return train_vector, train_label, train_cv_vector, train_cv_label, test_file_vector
             
 def main():
     train_word_file = "/home/chenyu/daguan/data/train_word"
+    test_word_file = "/home/chenyu/daguan/data/test_word"
     train_label_file = "/home/chenyu/daguan/data/train_label"
-    dict_file = "/home/chenyu/daguan/output/word_dic_128.json"
+    dict_file = "/home/chenyu/daguan/output/word_dic_64.json"
     #model_save_path = "/home/chenyu/daguan/model/basic_svm"
-    basic_model = BaselineModel(128)
+    basic_model = BaselineModel(64)
     
-    train_vector, train_label, train_cv_vector, train_cv_label = generate_model_input_data(train_word_file, train_label_file, dict_file)
-    
-    c_value = [1, 10, 50, 100, 500]
+    train_vector, train_label, train_cv_vector, train_cv_label, test_vector = generate_model_input_data(train_word_file, train_label_file, test_word_file, dict_file, basic_model.embedding_size)
+
+    c_value = [1, 10, 50, 100]
     for c in c_value:
         model_save_path = "/home/chenyu/daguan/model/basic_svm_" + str(c)
         basic_model.fit(c, model_save_path, train_vector, train_label)
@@ -83,4 +84,5 @@ def main():
         log.info("The f1 score for cv data is " + str(F1_score))
         
 if __name__=='__main__':
-    main()
+    import cProfile
+    cProfile.run("main()")

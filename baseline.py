@@ -12,7 +12,7 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 from logger_system import log
   
-def create_file_vector(train_file_path, dic_path, embedding_size):
+def create_file_vector(train_file_path, test_file_path, dic_path, embedding_size):
     """This is used to create the file vector represent
     This baseline method is as follow:
         1. train word2vec
@@ -21,24 +21,35 @@ def create_file_vector(train_file_path, dic_path, embedding_size):
         4. get average vector value of Top 128 word as file vector represent
     """
     # Read train file
-    file_origin_list = read_origin_data_file(train_file_path)
+    train_origin_list = read_origin_data_file(train_file_path)
+    test_origin_list = read_origin_data_file(test_file_path)
+    file_origin_list = train_origin_list + test_origin_list
+        
     word_list, tf_idf_sparse_matrix = calculate_tf_idf_matrix(file_origin_list)
     word_dic = load_dict(dic_path)
     file_vector_list = []
+    
+    # Create word vector array
+    word_vector = []
+    for word in word_list:
+        if word_dic.has_key(word):
+            word_vector.append(word_dic[word])
+        else:
+            word_vector.append([0.0]*64)
+    word_vector = np.array(word_vector)
     
     # Loop all file to create file vector representation
     log.info("The number of file is %d" %(len(file_origin_list)))
     log.info("The number of word list is %d" %(len(word_list)))
     for i in range(len(file_origin_list)):
-        if i % 100 == 0:
+        if i % 1000 == 0:
             log.info("Now has processed %d file" %(i))
             
         normal_array = tf_idf_sparse_matrix[i].toarray()
-        key_word_list = get_top_tfidf_value_word(word_list, normal_array)
-        cur_file_vector = count_average(key_word_list, word_dic, embedding_size)
+        cur_file_vector = calculate_file_vector(word_vector, normal_array)
         file_vector_list.append(cur_file_vector)
         
-    return file_vector_list
+    return file_vector_list[:len(train_origin_list)], file_vector_list[len(train_origin_list):]
 
 def read_origin_data_file(data_file_path):
     """This is used to read the data file"""
@@ -68,36 +79,14 @@ def calculate_tf_idf_matrix(file_origin_list):
     tfidf_sparse_matrix = csr_matrix(tfidf)
     return word_list, tfidf_sparse_matrix
 
-def get_top_tfidf_value_word(word_list, tfidf_value):
-    """This is used to get the top tfidf value words"""
-    
-    # 获取99分位数，仅保留tfidf值大于该值的词
-    standard_tfidf = np.percentile(tfidf_value,99.9)
-    
-    key_word_list = []
-    for i in range(len(tfidf_value[0])):
-        if tfidf_value[0][i] >= standard_tfidf:
-            key_word_list.append(word_list[i])
-    return key_word_list
-
-def count_average(key_word_list, word_dic, embedding_size):
-    """This is used to count the file vector by averaging the key word vector"""
-    vector_array = np.zeros(embedding_size)  
-    word_count = 0
-    
-    for word in key_word_list: 
-        if word_dic.has_key(word):
-            word_count += 1
-            vector_array += np.array(word_dic[word])
-        else:
-            #print ("This word %s is not in dict" % (word))
-            pass
-    
-    # Check word exist
-    if word_count > 0:
-        vector_array = vector_array/(word_count * 1.0) # Get average
-    return vector_array
-        
+def calculate_file_vector(word_vector, tfidf_value):
+    """This is used to calculate the file vector by matrix operation"""
+    standard_tfidf = np.percentile(tfidf_value,99.5)
+    temp_matrix = tfidf_value > standard_tfidf
+    temp_matrix = temp_matrix[0]
+    result = word_vector[temp_matrix == 1]
+    return np.mean(result, axis = 0)
+           
 def load_dict(dic_path):
     """Load pre-trained word2vec/char2vec vector dictionary."""
     log.info("Start loading dict")
