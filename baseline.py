@@ -12,7 +12,7 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 from logger_system import log
   
-def create_file_vector(train_file_path, dic_path, embedding_size):
+def create_file_vector(train_file_path, dic_path, embedding_size = 64):
     """This is used to create the file vector represent
     This baseline method is as follow:
         1. train word2vec

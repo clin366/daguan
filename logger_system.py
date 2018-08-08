@@ -47,5 +47,5 @@ class Logger(object):
     def critical(self,message):
         self.logger.critical(message)
 
-log = Logger("/home/chenyu/daguan")
+log = Logger("/Users/flynn/Desktop/DaGuan/daguan")
 

@@ -56,17 +56,17 @@ def generate_model_input_data(train_word_file, train_label_file, dict_file, cv_r
     return train_vector, train_label, train_cv_vector, train_cv_label
             
 def main():
-    train_word_file = "/home/chenyu/daguan/data/train_word"
-    train_label_file = "/home/chenyu/daguan/data/train_label"
-    dict_file = "/home/chenyu/daguan/output/word_dic_128.json"
+    train_word_file = "/Users/flynn/Desktop/DaGuan/new_data/train_word_head"
+    train_label_file = "/Users/flynn/Desktop/DaGuan/new_data/train_label_head"
+    dict_file = "/Users/flynn/Desktop/DaGuan/new_data/word_dic_64.json"
     #model_save_path = "/home/chenyu/daguan/model/basic_svm"
-    basic_model = BaselineModel(128)
+    basic_model = BaselineModel(64)
     
     train_vector, train_label, train_cv_vector, train_cv_label = generate_model_input_data(train_word_file, train_label_file, dict_file)
     
     c_value = [1, 10, 50, 100, 500]
     for c in c_value:
-        model_save_path = "/home/chenyu/daguan/model/basic_svm_" + str(c)
+        model_save_path = "/Users/flynn/Desktop/DaGuan/daguan/model/basic_svm_" + str(c)
         basic_model.fit(c, model_save_path, train_vector, train_label)
         train_predict_result = basic_model.predict(model_save_path, train_vector)
         cv_predict_result = basic_model.predict(model_save_path, train_cv_vector)
