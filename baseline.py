@@ -12,36 +12,28 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 from logger_system import log
   
-def create_file_vector(train_file_path, dic_path, embedding_size = 64):
-    """This is used to create the file vector represent
-    This baseline method is as follow:
-        1. train word2vec
-        2. calculate tf-idf
-        3. sort tf-idf value, get Top 128 word
-        4. get average vector value of Top 128 word as file vector represent
-    """
-    # Read train file
-    file_origin_list = read_origin_data_file(train_file_path)
-    word_list, tf_idf_sparse_matrix = calculate_tf_idf_matrix(file_origin_list)
+def create_file_vector(train_file_path, dic_path, embedding_size):
     word_dic = load_dict(dic_path)
-    file_vector_list = []
+    file_origin_list = read_origin_data_file(train_file_path)
     
-    # Loop all file to create file vector representation
-    log.info("The number of file is %d" %(len(file_origin_list)))
-    log.info("The number of word list is %d" %(len(word_list)))
-    for i in range(len(file_origin_list)):
-        if i % 10 == 0:
-            log.info("Now has processed %d file" %(i))
-            
-        normal_array = tf_idf_sparse_matrix[i].toarray()
-        key_word_list = get_top_tfidf_value_word(word_list, normal_array)
-        cur_file_vector = count_average(key_word_list, word_dic, embedding_size)
-        file_vector_list.append(cur_file_vector)
-        
-    return file_vector_list
+    #Create word vector array
+    word_vector = []
+    for article in file_origin_list:
+        article_vector = []
+        for word in article:
+            if word_dic.has_key(word):
+                article_vector.append(np.array(word_dic[word]))
+            else:
+                article_vector.append([0.0] * embedding_size)
+        if (len(article_vector) < 100):
+            for comp_index in xrange(0, (100 - len(article_vector))):
+                article_vector.append([0.0] * embedding_size)
+            # print "the length",
+            # print len(article_vector)
+        word_vector.append(np.array(article_vector))
+    return np.array(word_vector)
 
 def read_origin_data_file(data_file_path):
-    """This is used to read the data file"""
     log.info("Start reading the origin data file")
     file_origin_list = []
     with open(data_file_path, "r") as f:
@@ -49,7 +41,8 @@ def read_origin_data_file(data_file_path):
             line = f.readline()
             if not line:
                 break
-            line = line.replace("\n", "")
+            line = line.strip()
+            line = line.split(' ')
             file_origin_list.append(line)
     return file_origin_list
 

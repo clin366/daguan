@@ -5,11 +5,18 @@ Created on Tue Jul 31 18:44:23 2018
 @author: Eric
 """
 import random
-from sklearn import svm
-from sklearn import metrics
-from sklearn.externals import joblib
+# from sklearn import svm
+# from sklearn import metrics
+# from sklearn.externals import joblib
 from logger_system import log
 from baseline import create_file_vector
+
+import numpy as np
+np.random.seed(123)  # for reproducibility
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Convolution2D, MaxPooling2D
+from keras.utils import np_utils
 
 class BaselineModel(object):
     """This is used to do the baseline predict"""
@@ -56,31 +63,65 @@ def generate_model_input_data(train_word_file, train_label_file, dict_file, cv_r
     return train_vector, train_label, train_cv_vector, train_cv_label
             
 def main():
-    train_word_file = "/Users/flynn/Desktop/DaGuan/new_data/train_word_head"
-    train_label_file = "/Users/flynn/Desktop/DaGuan/new_data/train_label_head"
+    train_word_file = "/Users/flynn/Desktop/DaGuan/cnn_classification/train_data/sep_word.txt"
+    train_label_file = "/Users/flynn/Desktop/DaGuan/cnn_classification/train_data/sep_label.txt"
     dict_file = "/Users/flynn/Desktop/DaGuan/new_data/word_dic_64.json"
     #model_save_path = "/home/chenyu/daguan/model/basic_svm"
-    basic_model = BaselineModel(64)
+
+    file_vector = create_file_vector(train_word_file, dict_file, embedding_size = 64)
+
+    with open(train_label_file, 'r') as f:
+        label = []
+        line = f.readline()
+        while line:
+            line = line.strip()
+            label.append(int(line))
+            line = f.readline()
+
+    label = np.array(label)
+    label = label - 1
+    Y_label = np_utils.to_categorical(label, 14)
+    file_vector = file_vector.reshape(file_vector.shape[0], 100, 64,1)
+    file_vector = file_vector.astype('float32')
+
+    model = Sequential()
+    model.add(Convolution2D(32, 3, 3, activation='relu', input_shape=(100,64,1)))
+    model.add(Convolution2D(32, 3, 3, activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2,2)))
+    model.add(Dropout(0.25))
+    model.add(Flatten())
+    model.add(Dense(128, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(14, activation='softmax'))
+
+    model.compile(loss='categorical_crossentropy',
+              optimizer='adam',
+              metrics=['accuracy'])
+
+    model.fit(file_vector, Y_label, 
+          batch_size=10, nb_epoch=10, verbose=1)
+
+    # basic_model = BaselineModel(64)
     
-    train_vector, train_label, train_cv_vector, train_cv_label = generate_model_input_data(train_word_file, train_label_file, dict_file)
+    # train_vector, train_label, train_cv_vector, train_cv_label = generate_model_input_data(train_word_file, train_label_file, dict_file)
     
-    c_value = [1, 10, 50, 100, 500]
-    for c in c_value:
-        model_save_path = "/Users/flynn/Desktop/DaGuan/daguan/model/basic_svm_" + str(c)
-        basic_model.fit(c, model_save_path, train_vector, train_label)
-        train_predict_result = basic_model.predict(model_save_path, train_vector)
-        cv_predict_result = basic_model.predict(model_save_path, train_cv_vector)
+    # c_value = [1, 10, 50, 100, 500]
+    # for c in c_value:
+    #     model_save_path = "/Users/flynn/Desktop/DaGuan/daguan/model/basic_svm_" + str(c)
+    #     basic_model.fit(c, model_save_path, train_vector, train_label)
+    #     train_predict_result = basic_model.predict(model_save_path, train_vector)
+    #     cv_predict_result = basic_model.predict(model_save_path, train_cv_vector)
         
-        accuracy_score = metrics.precision_score(train_label, train_predict_result, average='micro') 
-        F1_score = metrics.f1_score(train_label, train_predict_result, average='weighted')  
-        log.info("The following is the result for c value " + str(c))
-        log.info("The accuracy for train data is " + str(accuracy_score))
-        log.info("The f1 score for train data is " + str(F1_score))
+    #     accuracy_score = metrics.precision_score(train_label, train_predict_result, average='micro') 
+    #     F1_score = metrics.f1_score(train_label, train_predict_result, average='weighted')  
+    #     log.info("The following is the result for c value " + str(c))
+    #     log.info("The accuracy for train data is " + str(accuracy_score))
+    #     log.info("The f1 score for train data is " + str(F1_score))
         
-        accuracy_score = metrics.precision_score(train_cv_label, cv_predict_result, average='micro') 
-        F1_score = metrics.f1_score(train_cv_label, cv_predict_result, average='weighted')  
-        log.info("The accuracy for cv data is " + str(accuracy_score))
-        log.info("The f1 score for cv data is " + str(F1_score))
+    #     accuracy_score = metrics.precision_score(train_cv_label, cv_predict_result, average='micro') 
+    #     F1_score = metrics.f1_score(train_cv_label, cv_predict_result, average='weighted')  
+    #     log.info("The accuracy for cv data is " + str(accuracy_score))
+    #     log.info("The f1 score for cv data is " + str(F1_score))
         
 if __name__=='__main__':
     main()
