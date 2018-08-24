@@ -4,12 +4,12 @@ Created on Tue Jul 31 18:44:23 2018
 
 @author: Eric
 """
-import random
+# import random
 # from sklearn import svm
 # from sklearn import metrics
 # from sklearn.externals import joblib
 from logger_system import log
-from baseline import create_file_vector
+# from baseline import create_file_vector
 
 import numpy as np
 np.random.seed(123)  # for reproducibility
@@ -24,7 +24,7 @@ from sklearn.metrics import accuracy_score
 tf.app.flags.DEFINE_string('log_dir', "logs", 'The log  dir')
 tf.app.flags.DEFINE_string("word2vec_path", "/Users/flynn/Desktop/DaGuan/new_data/word_dic_64.json",
                            "the word2vec data path")
-tf.app.flags.DEFINE_integer("max_sentence_len", 80,
+tf.app.flags.DEFINE_integer("max_sentence_len", 100,
                             "max num of tokens per query")
 tf.app.flags.DEFINE_integer("embedding_size", 64, "embedding size")
 tf.app.flags.DEFINE_integer("num_tags", 14, "BMES")
@@ -34,35 +34,6 @@ tf.app.flags.DEFINE_integer("train_steps", 1000, "trainning steps")
 tf.app.flags.DEFINE_float("learning_rate", 0.001, "learning rate")
 tf.app.flags.DEFINE_bool("use_idcnn", False, "whether use the idcnn")
 tf.app.flags.DEFINE_integer("track_history", 6, "track max history accuracy")
-
-def do_load_data(path):
-    x = []
-    y = []
-    fp = open(path, "r")
-    for line in fp.readlines():
-        line = line.rstrip()
-        if not line:
-            continue
-        ss = line.split(" ")
-        assert (len(ss) == (FLAGS.max_sentence_len * 2))
-        lx = []
-        ly = []
-        for i in range(FLAGS.max_sentence_len):
-            lx.append(int(ss[i]))
-
-        ly.append(int(ss[1 + FLAGS.max_sentence_len]))
-        ly.append(int(ss[2 + FLAGS.max_sentence_len]))
-        ly.append(int(ss[3 + FLAGS.max_sentence_len]))
-        ly.append(int(ss[4 + FLAGS.max_sentence_len]))
-        x.append(lx)
-        y.append(ly)
-    fp.close()
-    return np.array(x), np.array(y)
-
-def inputs(path):
-    whole = read_csv(FLAGS.batch_size, path)
-    features = tf.transpose(tf.stack(whole[0:FLAGS.max_sentence_len]))
-    return features
 
 class Model:
     def __init__(self, embeddingSize, distinctTagNum, c2vPath, numHidden):
@@ -88,13 +59,13 @@ class Model:
             self.model = BiLSTM(
                 FLAGS.num_hidden, FLAGS.max_sentence_len, FLAGS.num_tags)
         self.inp = tf.placeholder(tf.float32,
-                                  shape=[None, FLAGS.max_sentence_len, 64],
+                                  shape=[None, FLAGS.max_sentence_len, FLAGS.embedding_size],
                                   name="input_placeholder")
         pass
 
     def length(self, data):
         if (tf.contrib.framework.is_tensor(data)):
-            data = tf.reshape(data[:,:,0], [-1, 80])
+            data = tf.reshape(data[:,:,0], [-1, FLAGS.max_sentence_len])
         used = tf.sign(tf.abs(data[:, 0]))
         length = tf.cast(used, tf.int32)
         return length
@@ -103,7 +74,7 @@ class Model:
         if (tf.contrib.framework.is_tensor(X)):
             word_vectors = X
         else:
-            word_vectors = tf.convert_to_tensor(self.create_file_vector(X, embedding_size = 64), dtype=tf.float32)
+            word_vectors = tf.convert_to_tensor(self.create_file_vector(X, embedding_size = FLAGS.embedding_size), dtype=tf.float32)
         length = self.length(X)
         reuse = False if trainMode else True
         if FLAGS.use_idcnn:
@@ -140,8 +111,8 @@ class Model:
                     article_vector.append(np.array(word_dic[word]))
                 else:
                     article_vector.append([0.0] * embedding_size)
-            if (len(article_vector) < 80):
-                for comp_index in xrange(0, (80 - len(article_vector))):
+            if (len(article_vector) < FLAGS.max_sentence_len):
+                for comp_index in xrange(0, (FLAGS.max_sentence_len - len(article_vector))):
                     article_vector.append([0.0] * embedding_size)
             word_vector.append(np.array(article_vector))
         return np.array(word_vector)
@@ -151,26 +122,6 @@ class Model:
                                             reuse=True,
                                             trainMode=False)
         return P, sequence_length
-
-
-def read_csv(batch_size, file_name):
-    filename_queue = tf.train.string_input_producer([file_name])
-    reader = tf.TextLineReader(skip_header_lines=0)
-    key, value = reader.read(filename_queue)
-    # decode_csv will convert a Tensor from type string (the text line) in
-    # a tuple of tensor columns with the specified defaults, which also
-    # sets the data type for each column
-    decoded = tf.decode_csv(
-        value,
-        field_delim=' ',
-        record_defaults=[[0] for i in range(FLAGS.max_sentence_len * 2)])
-
-    # batch actually reads the file and loads "batch_size" rows in a single
-    # tensor
-    return tf.train.shuffle_batch(decoded,
-                                  batch_size=batch_size,
-                                  capacity=batch_size * 50,
-                                  min_after_dequeue=batch_size)
 
 
 def test_evaluate(sess, unary_score, test_sequence_length, inp,
@@ -215,7 +166,7 @@ def main():
     load_Y = np.loadtxt("sep_label.txt")
     Y_single = []
     for i in load_Y:
-        Y_single.append([int(i)])
+        Y_single.append([int(i) - 1])
     load_Y = np.array(Y_single)
 
     X_matrix = np.loadtxt(trainDataPath)
@@ -225,7 +176,7 @@ def main():
         model = Model(FLAGS.embedding_size, FLAGS.num_tags,
                       FLAGS.word2vec_path, FLAGS.num_hidden)
         print("train data path:", trainDataPath)
-        encoded_Y = tf.one_hot(load_Y, 14,
+        encoded_Y = tf.one_hot(load_Y, FLAGS.num_tags,
                on_value=1.0, off_value=0.0,
                axis=-1)
         P, total_loss = model.loss(X_matrix, encoded_Y)
@@ -250,7 +201,7 @@ def main():
                     if (step + 1) % 10 == 0:
                         print("[%d] loss: [%r]" %
                               (step + 1, sess.run(total_loss)))
-                        X_test = model.create_file_vector(X_matrix, embedding_size = 64)
+                        X_test = model.create_file_vector(X_matrix, embedding_size = FLAGS.embedding_size)
                         
                         acc = test_evaluate(sess, test_unary_score,
                                             test_sequence_length,
