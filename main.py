@@ -66,7 +66,9 @@ class Model:
     def length(self, data):
         if (tf.contrib.framework.is_tensor(data)):
             data = tf.reshape(data[:,:,0], [-1, FLAGS.max_sentence_len])
-        used = tf.sign(tf.abs(data[:, 0]))
+        # used = tf.sign(tf.abs(data[:, 0]))
+        # used = tf.sign(tf.abs(data))
+        # length = tf.reduce_sum(used, reduction_indices=1)
         length = tf.cast(used, tf.int32)
         return length
 
