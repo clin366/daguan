@@ -72,7 +72,7 @@ class Model:
 
             finalOut = tf.squeeze(finalOut, [1])
             # finalOut = tf.reshape(finalOut, [-1, totalWidthForLastDim])
-            finalOut = tf.reshape(finalOut, [-1, totalWidthForLastDim * 80])
+            finalOut = tf.reshape(finalOut, [-1, totalWidthForLastDim * self.max_seq_len])
 
             # finalW = tf.get_variable(
             #     "finalW",
@@ -81,7 +81,7 @@ class Model:
 
             finalW = tf.get_variable(
                 "finalW",
-                shape=[totalWidthForLastDim * 80, self.num_tags],
+                shape=[totalWidthForLastDim * self.max_seq_len, self.num_tags],
                 initializer=tf.contrib.layers.xavier_initializer())
 
             finalB = tf.get_variable("finalB",

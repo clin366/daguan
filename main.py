@@ -32,7 +32,8 @@ tf.app.flags.DEFINE_integer("num_hidden", 100, "hidden unit number")
 tf.app.flags.DEFINE_integer("batch_size", 100, "num example per mini batch")
 tf.app.flags.DEFINE_integer("train_steps", 1000, "trainning steps")
 tf.app.flags.DEFINE_float("learning_rate", 0.001, "learning rate")
-tf.app.flags.DEFINE_bool("use_idcnn", False, "whether use the idcnn")
+# tf.app.flags.DEFINE_bool("use_idcnn", False, "whether use the idcnn")
+tf.app.flags.DEFINE_bool("use_idcnn", True, "whether use the idcnn")
 tf.app.flags.DEFINE_integer("track_history", 6, "track max history accuracy")
 
 class Model:
@@ -66,7 +67,7 @@ class Model:
     def length(self, data):
         if (tf.contrib.framework.is_tensor(data)):
             data = tf.reshape(data[:,:,0], [-1, FLAGS.max_sentence_len])
-        # used = tf.sign(tf.abs(data[:, 0]))
+        used = tf.sign(tf.abs(data[:, 0]))
         # used = tf.sign(tf.abs(data))
         # length = tf.reduce_sum(used, reduction_indices=1)
         length = tf.cast(used, tf.int32)
@@ -93,7 +94,7 @@ class Model:
         print("We have the inference P!!!")
         cross_entropy2_step1=tf.nn.softmax_cross_entropy_with_logits(labels=Y,logits=P)
         loss=tf.reduce_sum(cross_entropy2_step1)
-        return P, loss
+        return loss
     
     def load_w2v(self, dic_path):
         print("Start loading dict")
@@ -181,7 +182,7 @@ def main():
         encoded_Y = tf.one_hot(load_Y, FLAGS.num_tags,
                on_value=1.0, off_value=0.0,
                axis=-1)
-        P, total_loss = model.loss(X_matrix, encoded_Y)
+        total_loss = model.loss(X_matrix, encoded_Y)
         train_op = train(total_loss)
         test_unary_score, test_sequence_length = model.test_unary_score()
     #     sv = tf.train.Supervisor(graph=graph, logdir=FLAGS.log_dir)
